@@ -47,6 +47,15 @@ arranca pero `/summarize` devuelve 503.
 
 ## Correr los tests
 
+Con **uv** (recomendado, más rápido y con `uv.lock` para versiones reproducibles):
+
+```bash
+uv sync --extra dev
+uv run --extra dev pytest test/ -v
+```
+
+O con pip tradicional:
+
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
