@@ -33,6 +33,6 @@ async def test_generate_raises_llm_error_on_http_error():
     respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
         return_value=httpx.Response(429, text="rate limited")
     )
-    client = GeminiClient(api_key="fake-key", model="gemini-1.5-flash", base_url=BASE)
+    client = GeminiClient(api_key="fake-key", model="gemini-1.5-flash", base_url=BASE, max_reintentos=0, espera_base_seg=0.01)
     with pytest.raises(LLMError):
         await client.generate("hola")
