@@ -23,7 +23,7 @@ class LLMClient(Protocol):
 class GeminiClient:
     """Implementación real que llama a la API REST de Gemini."""
 
-    def __init__(self, api_key: str | None, model: str, base_url: str, timeout_seconds: float = 30.0):
+    def __init__(self, api_key: str | None, model: str, base_url: str, timeout_seconds: float = 120.0):
         self.api_key = api_key
         self.model = model
         self.base_url = base_url.rstrip("/")
