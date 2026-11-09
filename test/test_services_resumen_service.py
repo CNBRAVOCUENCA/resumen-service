@@ -3,7 +3,6 @@
 from unittest.mock import AsyncMock
 
 import pytest
-
 from App.exceptions import EmptyTextError
 from App.services.resumen_service import ResumenService
 
@@ -36,3 +35,16 @@ async def test_prompt_includes_max_words():
     await service.summarize("texto", max_words=42)
     prompt_usado = fake_llm.generate.await_args.args[0]
     assert "42" in prompt_usado
+
+
+async def test_trunca_el_texto_segun_el_limite_inyectado():
+    llm = AsyncMock()
+    llm.generate.return_value = "resumen"
+    service = ResumenService(llm_client=llm, max_input_chars=10)
+
+    resultado = await service.summarize("a" * 50)
+
+    prompt = llm.generate.await_args.args[0]
+    assert prompt.endswith("a" * 10)
+    assert "a" * 11 not in prompt
+    assert resultado.input_char_count == 50

@@ -3,7 +3,6 @@
 import httpx
 import pytest
 import respx
-
 from App.exceptions import LLMError
 from App.services.llm_client import GeminiClient
 

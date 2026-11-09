@@ -16,7 +16,7 @@ def _get_service() -> ResumenService:
         model=settings.gemini_model,
         base_url=settings.gemini_base_url,
     )
-    return ResumenService(llm_client=client)
+    return ResumenService(llm_client=client, max_input_chars=settings.max_input_chars)
 
 
 @router.post("/summarize", response_model=SummaryResponse)

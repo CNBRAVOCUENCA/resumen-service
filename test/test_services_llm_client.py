@@ -3,7 +3,6 @@
 import httpx
 import pytest
 import respx
-
 from App.exceptions import LLMError, LLMNotConfiguredError
 from App.services.llm_client import GeminiClient
 
@@ -19,9 +18,7 @@ async def test_generate_raises_if_no_api_key():
 @respx.mock
 async def test_generate_returns_text_on_success():
     respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
-        return_value=httpx.Response(200, json={
-            "candidates": [{"content": {"parts": [{"text": "resumen ok"}]}}]
-        })
+        return_value=httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "resumen ok"}]}}]})
     )
     client = GeminiClient(api_key="fake-key", model="gemini-1.5-flash", base_url=BASE)
     result = await client.generate("resumime esto")
@@ -33,6 +30,23 @@ async def test_generate_raises_llm_error_on_http_error():
     respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
         return_value=httpx.Response(429, text="rate limited")
     )
-    client = GeminiClient(api_key="fake-key", model="gemini-1.5-flash", base_url=BASE, max_reintentos=0, espera_base_seg=0.01)
+    client = GeminiClient(
+        api_key="fake-key", model="gemini-1.5-flash", base_url=BASE, max_reintentos=0, espera_base_seg=0.01
+    )
     with pytest.raises(LLMError):
         await client.generate("hola")
+
+
+@respx.mock
+async def test_la_clave_viaja_en_header_y_no_en_la_url():
+    # La URL de cada petición queda en los logs: la clave no puede ir ahí.
+    ruta = respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
+        return_value=httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "ok"}]}}]})
+    )
+    client = GeminiClient(api_key="clave-secreta", model="m", base_url=BASE)
+
+    await client.generate("hola")
+
+    peticion = ruta.calls.last.request
+    assert "clave-secreta" not in str(peticion.url)
+    assert peticion.headers["x-goog-api-key"] == "clave-secreta"

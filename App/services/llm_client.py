@@ -54,14 +54,16 @@ class GeminiClient:
 
         url = f"{self.base_url}/v1beta/models/{self.model}:generateContent"
         payload = {"contents": [{"parts": [{"text": prompt}]}]}
-        params = {"key": self.api_key}
+        # La clave va en un header y no en la URL: las URLs quedan registradas en
+        # los logs (httpx, proxies), y así la clave nunca aparece en ellos.
+        headers = {"x-goog-api-key": self.api_key}
 
         ultimo_error = ""
         # Se intenta hasta max_reintentos+1 veces (el primer intento + los reintentos)
         for intento in range(self.max_reintentos + 1):
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as http_client:
                 try:
-                    response = await http_client.post(url, json=payload, params=params)
+                    response = await http_client.post(url, json=payload, headers=headers)
                 except httpx.HTTPError as exc:
                     ultimo_error = f"No se pudo contactar al proveedor de IA: {exc}"
                     await self._esperar(intento)

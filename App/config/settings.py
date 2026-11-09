@@ -1,6 +1,5 @@
 """Configuración del microservicio, vía variables de entorno."""
 
-from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -13,7 +12,7 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # Configuración del proveedor de IA (Gemini)
-    gemini_api_key: Optional[str] = None
+    gemini_api_key: str | None = None
     gemini_model: str = "gemini-1.5-flash"
     gemini_base_url: str = "https://generativelanguage.googleapis.com"
 

@@ -4,15 +4,16 @@ Con el cliente de IA inyectado (DIP), lo que permite testear la lógica de
 armado de prompt y validación sin llamar a la API real.
 """
 
-from App.config.settings import settings
 from App.exceptions import EmptyTextError
 from App.models.summary_result import SummaryResult
 from App.services.llm_client import LLMClient
 
 
 class ResumenService:
-    def __init__(self, llm_client: LLMClient):
+    def __init__(self, llm_client: LLMClient, max_input_chars: int = 30000):
         self.llm_client = llm_client
+        # Límite de entrada inyectado (no se lee la config desde el servicio).
+        self.max_input_chars = max_input_chars
 
     def _build_prompt(self, text: str, max_words: int) -> str:
         return (
@@ -27,7 +28,7 @@ class ResumenService:
             raise EmptyTextError("El texto a resumir está vacío")
 
         # Truncar entradas excesivas para no exceder límites del proveedor
-        truncated = normalized[: settings.max_input_chars]
+        truncated = normalized[: self.max_input_chars]
         prompt = self._build_prompt(truncated, max_words)
         summary = await self.llm_client.generate(prompt)
 

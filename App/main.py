@@ -2,11 +2,10 @@
 
 from fastapi import FastAPI
 
-from App.logging_config import configurar_logging
-
 from App.api import summary_router
 from App.api.exception_handlers import register_exception_handlers
 from App.config.settings import settings
+from App.logging_config import configurar_logging
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
