@@ -6,6 +6,7 @@ from App.api import summary_router
 from App.api.exception_handlers import register_exception_handlers
 from App.config.settings import settings
 from App.logging_config import configurar_logging
+from App.services.consul import consul_lifespan
 
 # Disable API documentation in production (when debug=False)
 docs_url = "/docs" if settings.debug else None
@@ -21,6 +22,7 @@ app = FastAPI(
     docs_url=docs_url,
     redoc_url=redoc_url,
     openapi_url=openapi_url,
+    lifespan=consul_lifespan(settings),
 )
 
 register_exception_handlers(app)

@@ -20,5 +20,13 @@ class Settings(BaseSettings):
     max_input_chars: int = 30000
     api_v1_prefix: str = "/api/v1"
 
+    # Registro opcional en Consul
+    consul_http_addr: str | None = None
+    consul_http_token: str | None = None
+    consul_service_name: str | None = None
+    consul_service_port: int = 8000
+    consul_service_tags: str = ""
+    consul_service_address: str | None = None
+
 
 settings = Settings()
