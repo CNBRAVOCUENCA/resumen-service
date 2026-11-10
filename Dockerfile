@@ -6,4 +6,5 @@ COPY App ./App
 RUN pip install --no-cache-dir "setuptools>=68" wheel \
 	&& pip install --no-cache-dir --no-build-isolation .
 EXPOSE 8000
+USER 10001:10001
 CMD ["uvicorn", "App.main:app", "--host", "0.0.0.0", "--port", "8000"]

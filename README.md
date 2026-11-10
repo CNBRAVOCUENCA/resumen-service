@@ -45,6 +45,28 @@ Copiar `.env.example` a `.env` y completar `GEMINI_API_KEY` con una clave real d
 [Google AI Studio](https://aistudio.google.com/app/apikey). Sin la key, el servicio
 arranca pero `/summarize` devuelve 503.
 
+### Consul y Traefik
+
+El registro en Consul es opcional: configura `CONSUL_HTTP_ADDR` con la dirección
+HTTP del agente (por ejemplo, `http://consul:8500`). Si está vacío, el registro
+queda desactivado, lo que permite ejecutar el servicio de forma independiente.
+`CONSUL_HTTP_TOKEN` es opcional y se envía en el encabezado `X-Consul-Token`;
+nunca se incluye en los logs.
+
+Al iniciar, la aplicación registra el servicio mediante la API del agente. El
+nombre predeterminado es `APP_NAME`, el puerto predeterminado es `8000`, y
+`CONSUL_SERVICE_TAGS` acepta tags separados por comas para la configuración de
+Traefik. Si no se configura `CONSUL_SERVICE_ADDRESS`, se anuncia la IP local
+seleccionada para llegar al agente de Consul; no se usa el nombre DNS replicado
+ni un `container_name` fijo. Se puede fijar la dirección explícitamente cuando
+la topología de red lo requiera.
+
+Consul consulta `http://<dirección>:<puerto>/health` cada 10 segundos, con un
+timeout de 2 segundos, y elimina la instancia si permanece crítica durante un
+minuto. La aplicación intenta desregistrarla al cerrarse. Si `CONSUL_HTTP_ADDR`
+está configurado y falla el registro, el inicio falla para evitar ejecutar una
+instancia que no se pueda descubrir.
+
 ## Correr los tests
 
 Con **uv** (recomendado, más rápido y con `uv.lock` para versiones reproducibles):
