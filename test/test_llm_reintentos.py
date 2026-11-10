@@ -1,4 +1,4 @@
-"""Tests de los reintentos automáticos del cliente de IA."""
+"""Tests de la política de una sola llamada del cliente de IA."""
 
 import httpx
 import pytest
@@ -10,40 +10,35 @@ BASE = "https://fake-gemini.test"
 
 
 @respx.mock
-async def test_reintenta_ante_503_y_luego_tiene_exito():
-    """Si Google da 503 (saturado) y después responde bien, el cliente
-    reintenta solo y devuelve el resultado — sin que falle."""
-    ruta = respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent")
-    # Primera llamada: 503. Segunda: éxito.
-    ruta.side_effect = [
-        httpx.Response(503, text="high demand"),
-        httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "resumen ok"}]}}]}),
-    ]
-    # espera_base muy chica para que el test sea rápido
-    client = GeminiClient(api_key="k", model="m", base_url=BASE, espera_base_seg=0.01)
-    resultado = await client.generate("hola")
-    assert resultado == "resumen ok"
-
-
-@respx.mock
-async def test_se_rinde_tras_agotar_reintentos():
-    """Si Google da 503 siempre, tras agotar los reintentos lanza LLMError."""
-    respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
+async def test_no_reintenta_ante_respuesta_temporal_503():
+    """Un 503 falla sin repetir el POST de generación."""
+    ruta = respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
         return_value=httpx.Response(503, text="high demand")
     )
-    client = GeminiClient(api_key="k", model="m", base_url=BASE, max_reintentos=2, espera_base_seg=0.01)
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
     with pytest.raises(LLMError):
         await client.generate("hola")
+    assert ruta.call_count == 1
 
 
 @respx.mock
-async def test_no_reintenta_ante_404():
-    """Un 404 (modelo inexistente) NO es temporal: falla de una, sin reintentar."""
+async def test_no_reintenta_ante_429_ni_404():
+    """Los errores HTTP fallan con un solo POST, incluso si parecen temporales."""
     ruta = respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
-        return_value=httpx.Response(404, text="model not found")
+        return_value=httpx.Response(429, text="rate limited")
     )
-    client = GeminiClient(api_key="k", model="m", base_url=BASE, espera_base_seg=0.01)
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
     with pytest.raises(LLMError):
         await client.generate("hola")
-    # Se llamó una sola vez (no reintentó)
+    assert ruta.call_count == 1
+
+
+@respx.mock
+async def test_no_reintenta_ante_error_de_transporte():
+    ruta = respx.post(url__regex=rf"{BASE}/v1beta/models/.*:generateContent").mock(
+        side_effect=httpx.ConnectError("connection lost")
+    )
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
+    with pytest.raises(LLMError):
+        await client.generate("hola")
     assert ruta.call_count == 1

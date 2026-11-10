@@ -39,6 +39,13 @@ cuota real de la API.
 | Falta la API key de Gemini | 503 |
 | Error al llamar a Gemini (rate limit, red, etc.) | 502 |
 
+## Política de llamadas a Gemini
+
+`POST generateContent` se ejecuta una sola vez, con timeout de 120 segundos.
+No se reintentan respuestas 429/5xx ni errores de transporte: una respuesta
+perdida puede dejar ambiguo si Gemini procesó y facturó la generación, y este
+contrato no incluye una clave de idempotencia.
+
 ## Configuración
 
 Copiar `.env.example` a `.env` y completar `GEMINI_API_KEY` con una clave real de
