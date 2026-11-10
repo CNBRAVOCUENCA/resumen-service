@@ -45,6 +45,12 @@ Copiar `.env.example` a `.env` y completar `GEMINI_API_KEY` con una clave real d
 [Google AI Studio](https://aistudio.google.com/app/apikey). Sin la key, el servicio
 arranca pero `/summarize` devuelve 503.
 
+### Usuario de ejecución en Docker
+
+La imagen ejecuta Uvicorn con UID:GID `10001:10001`, ambos sin privilegios. El
+servicio no necesita escribir en el sistema de archivos local; los logs se
+envían a stdout.
+
 ### Consul y Traefik
 
 El registro en Consul es opcional: configura `CONSUL_HTTP_ADDR` con la dirección
