@@ -47,7 +47,7 @@ Solo se reintenta cuando Gemini no procesó el pedido, para no duplicar generaci
 | 500, timeout de lectura u otros errores | No: el pedido pudo haberse procesado |
 | 4xx distintos de 429 | No |
 
-Presupuesto total: si la próxima espera supera los 180 s desde el primer intento, no se reintenta más. Si Gemini parte la respuesta en varias partes, se unen todas.
+Presupuesto total: si la próxima espera supera los 80 s desde el primer intento, no se reintenta más. Cada intento tiene timeout de 30 s, así el peor caso (≈110 s) queda dentro de los 120 s que espera el Orquestador. Si Gemini parte la respuesta en varias partes, se unen todas.
 
 ## Errores
 

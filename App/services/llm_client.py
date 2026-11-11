@@ -18,7 +18,9 @@ orquestador-service/infra/RESILIENCE.md:
 - Máximo 3 reintentos (4 intentos en total), espera creciente 2 s, 4 s, 6 s
   (o el Retry-After que mande Google, con un tope de 10 s).
 - Presupuesto total: si la próxima espera haría superar `presupuesto_total_seg`
-  (180 s por defecto), no se reintenta más y se devuelve el error.
+  (80 s por defecto), no se reintenta más. Cada intento tiene un timeout de 30 s,
+  así el peor caso (80 s + 30 s) queda por debajo de los 120 s que espera el
+  Orquestador y no se sigue trabajando para un pedido que ya se dio por fallido.
 """
 
 import asyncio
@@ -49,10 +51,10 @@ class GeminiClient:
         api_key: str | None,
         model: str,
         base_url: str,
-        timeout_seconds: float = 120.0,
+        timeout_seconds: float = 30.0,
         max_reintentos: int = 3,
         espera_base_seg: float = 2.0,
-        presupuesto_total_seg: float = 180.0,
+        presupuesto_total_seg: float = 80.0,
     ):
         self.api_key = api_key
         self.model = model
