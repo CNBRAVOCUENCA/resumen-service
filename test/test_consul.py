@@ -3,12 +3,11 @@ import json
 import httpx
 import pytest
 import respx
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 from App.config.settings import Settings
 from App.services import consul
 from App.services.consul import ConsulRegistrar, consul_lifespan
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 CONSUL_URL = "http://consul.test:8500"
 
@@ -128,9 +127,8 @@ def test_registration_failure_prevents_application_startup():
         respx.put(f"{CONSUL_URL}/v1/agent/service/register").mock(
             return_value=httpx.Response(500)
         )
-        with pytest.raises(RuntimeError, match="Consul service registration failed"):
-            with TestClient(app):
-                pytest.fail("the application must not start after failed registration")
+        with pytest.raises(RuntimeError, match="Consul service registration failed"), TestClient(app):
+            pytest.fail("the application must not start after failed registration")
 
 
 @pytest.mark.asyncio
