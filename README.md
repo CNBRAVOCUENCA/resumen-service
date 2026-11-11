@@ -46,11 +46,17 @@ cuota real de la API.
 
 ## Política de llamadas a Gemini
 
-`POST generateContent` se ejecuta una sola vez, con timeout de 30 segundos.
-No se reintentan respuestas HTTP ni errores de transporte: una respuesta
-perdida puede dejar ambiguo si Gemini procesó y facturó la generación, y este
-contrato no incluye una clave de idempotencia. Si Gemini divide la respuesta
-en varias partes, el servicio las une.
+`POST generateContent` tiene timeout de 30 segundos y un presupuesto total de
+80 segundos. Se permiten hasta 3 reintentos (4 intentos en total) solo ante
+respuestas **429/503** o errores al establecer la conexión (**ConnectError** /
+**ConnectTimeout**). Se usa `Retry-After` si es numérico (máximo 10 segundos);
+si no, se aplica backoff de 2, 4 y 6 segundos.
+
+No se reintentan otros errores HTTP, errores de lectura ni timeouts: en esos
+casos la solicitud pudo haber sido procesada y volver a generarla podría
+duplicar costos. El presupuesto total se aplica a los intentos y las esperas
+para que la llamada no exceda el timeout de 120 segundos del Orquestador.
+Si Gemini divide la respuesta en varias partes, el servicio las une.
 
 ## Configuración
 
