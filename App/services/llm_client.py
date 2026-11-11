@@ -62,8 +62,8 @@ class GeminiClient:
 
             espera: float | None = None
             try:
-                async with httpx.AsyncClient(timeout=min(self.timeout_seconds, restante)) as http_client:
-                    async with asyncio.timeout(restante):
+                async with asyncio.timeout(restante):
+                    async with httpx.AsyncClient(timeout=min(self.timeout_seconds, restante)) as http_client:
                         response = await http_client.post(url, json=payload, headers=headers)
             except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
                 ultimo_error = f"No se pudo establecer conexión con el proveedor de IA: {exc}"
