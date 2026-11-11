@@ -22,7 +22,8 @@ def _get_service() -> ResumenService:
 @router.post("/summarize", response_model=SummaryResponse)
 async def summarize(payload: SummarizeRequest, service: ResumenService = Depends(_get_service)) -> SummaryResponse:
     """Genera un resumen del texto recibido usando IA (Gemini)."""
-    result = await service.summarize(payload.text, payload.max_words or 150)
+    # max_words ya viene validado por el schema (10-500); no se reemplaza 0 por 150.
+    result = await service.summarize(payload.text, payload.max_words)
     return SummaryResponse(
         summary=result.summary,
         input_char_count=result.input_char_count,
