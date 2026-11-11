@@ -2,8 +2,8 @@
 
 import logging
 import socket
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from urllib.parse import urlsplit
 
 import httpx
