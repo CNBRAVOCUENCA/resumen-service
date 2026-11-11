@@ -36,19 +36,6 @@ cuota real de la API.
 - `text`: obligatorio; si está vacío o tiene solo espacios responde **400** y no se llama a Gemini.
 - `max_words`: entero entre **10 y 500**, por defecto **150**. Fuera de rango (0, negativos, 501 o más), `null` o no numérico responde **422** y no se llama a Gemini. El límite es orientativo: se le pide al modelo "un máximo de N palabras".
 
-### Reintentos hacia Gemini (patrón Retry)
-
-Solo se reintenta cuando Gemini no procesó el pedido, para no duplicar generaciones facturables:
-
-| Situación | ¿Reintenta? |
-|---|---|
-| 429 o 503 | Sí, hasta 3 reintentos (4 intentos), espera 2 s, 4 s y 6 s o el `Retry-After` (tope 10 s) |
-| No se pudo conectar (`ConnectError`/`ConnectTimeout`) | Sí, misma política |
-| 500, timeout de lectura u otros errores | No: el pedido pudo haberse procesado |
-| 4xx distintos de 429 | No |
-
-Presupuesto total: si la próxima espera supera los 80 s desde el primer intento, no se reintenta más. Cada intento tiene timeout de 30 s, así el peor caso (≈110 s) queda dentro de los 120 s que espera el Orquestador. Si Gemini parte la respuesta en varias partes, se unen todas.
-
 ## Errores
 
 | Situación | HTTP |
@@ -56,6 +43,14 @@ Presupuesto total: si la próxima espera supera los 80 s desde el primer intento
 | Texto vacío | 400 |
 | Falta la API key de Gemini | 503 |
 | Error al llamar a Gemini (rate limit, red, etc.) | 502 |
+
+## Política de llamadas a Gemini
+
+`POST generateContent` se ejecuta una sola vez, con timeout de 30 segundos.
+No se reintentan respuestas HTTP ni errores de transporte: una respuesta
+perdida puede dejar ambiguo si Gemini procesó y facturó la generación, y este
+contrato no incluye una clave de idempotencia. Si Gemini divide la respuesta
+en varias partes, el servicio las une.
 
 ## Configuración
 
