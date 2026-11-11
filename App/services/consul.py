@@ -2,9 +2,9 @@
 
 import logging
 import socket
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 import httpx
 from fastapi import FastAPI
@@ -95,6 +95,9 @@ class ConsulRegistrar:
             return
         try:
             payload = self._service_payload()
+            await purge_stale_instances(
+                self.consul_http_addr, self._headers(), payload["Address"], payload["Port"], payload["ID"]
+            )
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.put(
                     f"{self.consul_http_addr}/v1/agent/service/register",
@@ -130,3 +133,34 @@ def consul_lifespan(config: Settings):
             await registrar.deregister()
 
     return lifespan
+
+
+async def purge_stale_instances(
+    consul_http_addr: str, headers: dict[str, str], address: str, port: int, keep_id: str
+) -> int:
+    """Da de baja registros viejos que apuntan a la misma IP:puerto que esta instancia.
+
+    Docker reutiliza las IP: si un contenedor anterior no llegó a darse de baja, su
+    registro queda en Consul y el health check le pega a ESTE contenedor (misma IP),
+    así que nunca falla ni se borra solo. Una IP:puerto identifica a un solo
+    contenedor, por eso cualquier otro registro con esa dirección es viejo.
+    Un fallo acá no impide el arranque: solo se registra un aviso.
+    """
+    base = consul_http_addr.strip().rstrip("/")
+    if "://" not in base:
+        base = f"http://{base}"
+    borrados = 0
+    try:
+        async with httpx.AsyncClient(timeout=5.0, headers=headers) as client:
+            response = await client.get(f"{base}/v1/agent/services")
+            response.raise_for_status()
+            for service_id, service in response.json().items():
+                if service_id == keep_id:
+                    continue
+                if service.get("Address") == address and service.get("Port") == port:
+                    baja = await client.put(f"{base}/v1/agent/service/deregister/{quote(service_id, safe='')}")
+                    baja.raise_for_status()
+                    borrados += 1
+    except Exception as exc:
+        logger.warning("No se pudieron limpiar registros viejos de Consul (%s)", type(exc).__name__)
+    return borrados
