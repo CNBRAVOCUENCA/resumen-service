@@ -31,6 +31,11 @@ cuota real de la API.
 | POST | `/api/v1/summarize` | Recibe `{"text": "...", "max_words": 150}`, devuelve `{summary, input_char_count, summary_char_count}` |
 | GET | `/health` | Health check (indica si la API key está configurada) |
 
+### Validación de la entrada
+
+- `text`: obligatorio; si está vacío o tiene solo espacios responde **400** y no se llama a Gemini.
+- `max_words`: entero entre **10 y 500**, por defecto **150**. Fuera de rango (0, negativos, 501 o más), `null` o no numérico responde **422** y no se llama a Gemini. El límite es orientativo: se le pide al modelo "un máximo de N palabras".
+
 ## Errores
 
 | Situación | HTTP |
@@ -41,16 +46,45 @@ cuota real de la API.
 
 ## Política de llamadas a Gemini
 
-`POST generateContent` se ejecuta una sola vez, con timeout de 120 segundos.
-No se reintentan respuestas 429/5xx ni errores de transporte: una respuesta
+`POST generateContent` se ejecuta una sola vez, con timeout de 30 segundos.
+No se reintentan respuestas HTTP ni errores de transporte: una respuesta
 perdida puede dejar ambiguo si Gemini procesó y facturó la generación, y este
-contrato no incluye una clave de idempotencia.
+contrato no incluye una clave de idempotencia. Si Gemini divide la respuesta
+en varias partes, el servicio las une.
 
 ## Configuración
 
 Copiar `.env.example` a `.env` y completar `GEMINI_API_KEY` con una clave real de
 [Google AI Studio](https://aistudio.google.com/app/apikey). Sin la key, el servicio
 arranca pero `/summarize` devuelve 503.
+
+### Usuario de ejecución en Docker
+
+La imagen ejecuta Uvicorn con UID:GID `10001:10001`, ambos sin privilegios. El
+servicio no necesita escribir en el sistema de archivos local; los logs se
+envían a stdout.
+
+### Consul y Traefik
+
+El registro en Consul es opcional: configura `CONSUL_HTTP_ADDR` con la dirección
+HTTP del agente (por ejemplo, `http://consul:8500`). Si está vacío, el registro
+queda desactivado, lo que permite ejecutar el servicio de forma independiente.
+`CONSUL_HTTP_TOKEN` es opcional y se envía en el encabezado `X-Consul-Token`;
+nunca se incluye en los logs.
+
+Al iniciar, la aplicación registra el servicio mediante la API del agente. El
+nombre predeterminado es `APP_NAME`, el puerto predeterminado es `8000`, y
+`CONSUL_SERVICE_TAGS` acepta tags separados por comas para la configuración de
+Traefik. Si no se configura `CONSUL_SERVICE_ADDRESS`, se anuncia la IP local
+seleccionada para llegar al agente de Consul; no se usa el nombre DNS replicado
+ni un `container_name` fijo. Se puede fijar la dirección explícitamente cuando
+la topología de red lo requiera.
+
+Consul consulta `http://<dirección>:<puerto>/health` cada 10 segundos, con un
+timeout de 2 segundos, y elimina la instancia si permanece crítica durante un
+minuto. La aplicación intenta desregistrarla al cerrarse. Si `CONSUL_HTTP_ADDR`
+está configurado y falla el registro, el inicio falla para evitar ejecutar una
+instancia que no se pueda descubrir.
 
 ## Correr los tests
 
@@ -71,6 +105,20 @@ pytest test/ -v
 
 Los tests **no** llaman a la API real de Gemini: usan un cliente falso / respuestas
 mockeadas con `respx`.
+
+## Escaneo de seguridad
+
+El workflow `Security scan` audita las dependencias de runtime fijadas en
+`uv.lock` y construye/escanea la imagen Docker con Trivy. Se ejecuta en cada PR,
+push a `main`/`master`, semanalmente (lunes 06:00 UTC) y manualmente desde
+GitHub Actions. La política es: **falla el job cualquier hallazgo HIGH o CRITICAL que tenga
+parche disponible** (`ignore-unfixed: true`). Los HIGH/CRITICAL sin parche de la
+imagen base (paquetes de Debian en estado *affected*, sin versión corregida)
+**se siguen mostrando** en la tabla del log, pero no bloquean: no hay acción
+posible desde este repo hasta que Debian publique el arreglo, y en ese momento el
+escaneo semanal empieza a fallar y obliga a reconstruir la imagen. No se usan
+`.trivyignore` ni otros filtros. Los detalles quedan visibles en el log del workflow. También verifica que la imagen se ejecute como
+un usuario distinto de root.
 
 ## Stack
 

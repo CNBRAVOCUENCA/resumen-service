@@ -32,7 +32,7 @@ class GeminiClient:
         api_key: str | None,
         model: str,
         base_url: str,
-        timeout_seconds: float = 120.0,
+        timeout_seconds: float = 30.0,
     ):
         self.api_key = api_key
         self.model = model
@@ -60,8 +60,16 @@ class GeminiClient:
                 f"El proveedor de IA respondió {response.status_code}: {response.text[:200]}"
             )
 
+        return self._extraer_texto(response)
+
+    @staticmethod
+    def _extraer_texto(response: httpx.Response) -> str:
+        """Une todas las partes de texto del primer candidato."""
         try:
-            data = response.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except (KeyError, IndexError, ValueError) as exc:
+            partes = response.json()["candidates"][0]["content"]["parts"]
+            texto = "".join(parte.get("text", "") for parte in partes).strip()
+        except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise LLMError(f"Respuesta inesperada del proveedor de IA: {exc}") from exc
+        if not texto:
+            raise LLMError("El proveedor de IA devolvió una respuesta sin texto")
+        return texto

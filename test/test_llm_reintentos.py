@@ -42,3 +42,36 @@ async def test_no_reintenta_ante_error_de_transporte():
     with pytest.raises(LLMError):
         await client.generate("hola")
     assert ruta.call_count == 1
+
+
+URL = rf"{BASE}/v1beta/models/.*:generateContent"
+OK = {"candidates": [{"content": {"parts": [{"text": "resumen ok"}]}}]}
+
+
+@respx.mock
+async def test_no_reintenta_ante_500_para_no_duplicar_la_generacion():
+    ruta = respx.post(url__regex=URL).mock(return_value=httpx.Response(500, text="internal"))
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
+    with pytest.raises(LLMError):
+        await client.generate("hola")
+    assert ruta.call_count == 1
+
+
+@respx.mock
+async def test_no_reintenta_timeout_de_lectura():
+    ruta = respx.post(url__regex=URL).mock(side_effect=httpx.ReadTimeout("lento"))
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
+    with pytest.raises(LLMError):
+        await client.generate("hola")
+    assert ruta.call_count == 1
+
+
+@respx.mock
+async def test_une_todas_las_partes_de_la_respuesta():
+    respx.post(url__regex=URL).mock(
+        return_value=httpx.Response(
+            200, json={"candidates": [{"content": {"parts": [{"text": "Primera parte, "}, {"text": "segunda."}]}}]}
+        )
+    )
+    client = GeminiClient(api_key="k", model="m", base_url=BASE)
+    assert await client.generate("hola") == "Primera parte, segunda."
